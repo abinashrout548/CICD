@@ -2,15 +2,22 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'cicd-python'
-        IMAGE_TAG  = "${BUILD_NUMBER}"
+        IMAGE_NAME      = 'etl-python'
+        IMAGE_TAG       = "${BUILD_NUMBER}"
         ARTIFACTORY_URL = 'http://artifactory:8081/artifactory'
+        ARTIFACTORY_REPO = 'python-docker'
+        DB_HOST         = 'host.docker.internal'
+        DB_PORT         = '3306'
+        DB_NAME         = 'etl_db'
+        DB_USER         = 'root'
+        DB_PASS         = 'password'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                echo '📥 Pulling from GitHub...'
+                echo '📥 Pulling code from GitHub...'
                 git branch: 'main',
                     url: 'https://github.com/abinashrout548/CICD.git'
             }
@@ -18,15 +25,15 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                echo '📦 Installing dependencies...'
+                echo '📦 Installing Python dependencies...'
                 sh 'pip install -r requirements.txt'
             }
         }
 
         stage('Run Tests') {
             steps {
-                echo '🧪 Running tests...'
-                sh 'pytest test_script.py -v'
+                echo '🧪 Running pytest...'
+                sh 'pytest test_etl.py -v'
             }
         }
 
@@ -39,25 +46,29 @@ pipeline {
 
         stage('Push to Artifactory') {
             steps {
-                echo '📤 Pushing to Artifactory...'
+                echo '📤 Pushing image to Artifactory...'
                 sh """
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} \
-                    artifactory:8081/python-docker/${IMAGE_NAME}:${IMAGE_TAG}
+                        artifactory:8081/${ARTIFACTORY_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
                     docker push \
-                    artifactory:8081/python-docker/${IMAGE_NAME}:${IMAGE_TAG}
+                        artifactory:8081/${ARTIFACTORY_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
                 """
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy & Run ETL') {
             steps {
-                echo '🚀 Deploying container...'
+                echo '🚀 Running ETL container...'
                 sh """
                     docker stop ${IMAGE_NAME} || true
-                    docker rm ${IMAGE_NAME} || true
-                    docker run -d \
-                        --name ${IMAGE_NAME} \
+                    docker rm   ${IMAGE_NAME} || true
+                    docker run --name ${IMAGE_NAME} \
                         --network artifactory-net \
+                        -e DB_HOST=${DB_HOST} \
+                        -e DB_PORT=${DB_PORT} \
+                        -e DB_NAME=${DB_NAME} \
+                        -e DB_USER=${DB_USER} \
+                        -e DB_PASS=${DB_PASS} \
                         ${IMAGE_NAME}:${IMAGE_TAG}
                 """
             }
@@ -65,7 +76,11 @@ pipeline {
     }
 
     post {
-        success { echo '✅ Pipeline succeeded!' }
-        failure { echo '❌ Pipeline failed! Check logs.' }
+        success {
+            echo '✅ ETL Pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ ETL Pipeline failed! Check the logs above.'
+        }
     }
 }

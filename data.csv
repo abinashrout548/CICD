@@ -1,0 +1,11 @@
+name,age,salary,department,city
+Alice,30,50000,Engineering,New York
+Bob,,60000,Marketing,
+Charlie,25,,Engineering,Chicago
+,28,45000,HR,Boston
+Eve,35,70000,,Seattle
+Frank,40,80000,Engineering,New York
+,,,, 
+Grace,29,55000,Marketing,Austin
+Henry,,65000,Finance,Denver
+Isla,33,72000,Engineering,
