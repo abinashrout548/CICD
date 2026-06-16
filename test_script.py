@@ -4,3 +4,4 @@ def test_basic():
 def test_import():
     import script  # change to your actual script name
     assert script is not None
+    
